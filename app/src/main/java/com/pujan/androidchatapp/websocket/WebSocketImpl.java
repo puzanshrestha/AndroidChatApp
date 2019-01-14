@@ -1,6 +1,8 @@
 package com.pujan.androidchatapp.websocket;
 
 
+import com.google.gson.Gson;
+
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.WebSocket;
@@ -33,12 +35,16 @@ public class WebSocketImpl implements WebSocketPresenter {
     @Override
     public void sendMessage(String messages) {
 
-        String json = "{\"actionType\" : \"message\"," +
-                "\"sender\": \"android\"," +
-                "\"message\": \"" + messages + "\"," +
-                "\"chatRoom\": \"aaa\"}";
+        MessageModel messageModel = new MessageModel();
+        messageModel.setActionType("message");
+        messageModel.setSender("android");
+        messageModel.setMessage(messages);
+        messageModel.setChatRoom("aaa");
+        String json = new Gson().toJson(messageModel);
         ws.send(json);
         System.out.println(json);
+
+
     }
 
 
