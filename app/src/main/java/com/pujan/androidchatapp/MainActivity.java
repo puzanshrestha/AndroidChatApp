@@ -22,7 +22,16 @@ import com.pujan.androidchatapp.websocket.WebSocketImpl;
 import com.pujan.androidchatapp.websocket.WebSocketPresenter;
 import com.pujan.androidchatapp.websocket.WebSocketView;
 
+
+import org.java_websocket.WebSocket;
+
 import java.util.ArrayList;
+
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.schedulers.Schedulers;
+import ua.naiksoftware.stomp.Stomp;
+import ua.naiksoftware.stomp.StompClient;
+
 
 public class MainActivity extends AppCompatActivity implements SignInView, WebSocketView {
 
@@ -37,38 +46,101 @@ public class MainActivity extends AppCompatActivity implements SignInView, WebSo
     ArrayList<MessageModel> messageLists;
     MyAdapter mAdapter;
 
+    private StompClient mStompClient;
+
+    private EditText etGroupId;
+
+    private int groupId;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        signInPresenter = new SignInPresenterImpl(MainActivity.this);
-        signInPresenter.signIn("test", "test");
-
-        webSocketPresenter = new WebSocketImpl(MainActivity.this);
-        webSocketPresenter.startWebSocket();
-
-        button = (Button) findViewById(R.id.send_button);
-        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
-        messageBox = (EditText) findViewById(R.id.message_box);
-
-        LinearLayoutManager mLayoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(mLayoutManager);
-
-        messageLists = new ArrayList<>();
-
-        mAdapter = new MyAdapter(messageLists);
-        recyclerView.setAdapter(mAdapter);
 
 
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                webSocketPresenter.sendMessage(messageBox.getText().toString().trim());
-                messageBox.setText("");
-            }
-        });
+//        signInPresenter = new SignInPresenterImpl(MainActivity.this);
+//        signInPresenter.signIn("test", "test");
+//
+//        webSocketPresenter = new WebSocketImpl(MainActivity.this);
+//        webSocketPresenter.startWebSocket();
+//
+//        button = (Button) findViewById(R.id.send_button);
+//        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+//        messageBox = (EditText) findViewById(R.id.message_box);
+//
+//        LinearLayoutManager mLayoutManager = new LinearLayoutManager(this);
+//        recyclerView.setLayoutManager(mLayoutManager);
+//
+//        messageLists = new ArrayList<>();
+//
+//        mAdapter = new MyAdapter(messageLists);
+//        recyclerView.setAdapter(mAdapter);
+//
+//
+//        button.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                webSocketPresenter.sendMessage(messageBox.getText().toString().trim());
+//                messageBox.setText("");
+//            }
+//        });
 
+
+
+        etGroupId = (EditText)findViewById(R.id.et_group_id);
+
+
+
+
+    }
+
+    public void startStomp(View view) {
+        if(etGroupId.getText().length()>0) {
+            if(mStompClient!=null)
+                mStompClient.disconnect();
+            groupId = Integer.parseInt(etGroupId.getText().toString());
+            initStomp();
+        }
+        else {
+            Toast.makeText(this, "INVALID GROUP ID", Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+    private void initStomp (){
+
+        // replace your websocket url
+        mStompClient = Stomp.over(Stomp.ConnectionProvider.OKHTTP, "ws://trackouteserver.herokuapp.com/trackoute/websocket");
+        // replace with your topics
+        mStompClient.topic("/topic/group/"+groupId)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(topicMessage -> {
+                    Toast.makeText(this, topicMessage.getPayload(), Toast.LENGTH_SHORT).show();
+
+                }, throwable -> {
+
+                });
+
+
+
+        mStompClient.connect();
+        mStompClient.lifecycle()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(lifecycleEvent -> {
+                    switch (lifecycleEvent.getType()) {
+                        case OPENED:
+                            Toast.makeText(this, "Stomp connection opened", Toast.LENGTH_SHORT).show();
+                            break;
+                        case ERROR:
+                            Toast.makeText(this, "Stomp connection error", Toast.LENGTH_SHORT).show();
+                            break;
+                        case CLOSED:
+                            Toast.makeText(this, "Stomp connection closed", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     @Override
@@ -123,6 +195,8 @@ public class MainActivity extends AppCompatActivity implements SignInView, WebSo
     public void disconnected() {
 
     }
+
+
 
 
     public class MyAdapter extends RecyclerView.Adapter<MyAdapter.MyViewHolder> {
